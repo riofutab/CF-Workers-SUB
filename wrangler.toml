@@ -3,6 +3,6 @@ main = "_worker.js"
 compatibility_date = "2025-07-23"
 keep_vars = true
 
-#[[kv_namespaces]]
-#binding = "KV"			#KV绑定名默认不可修改
-#id = "7dbef248fcc547d39689967f91f5f46f"					#KV据库id
+[[kv_namespaces]]
+binding = "KV"			# KV 绑定名，代码用 env.KV 引用，勿改
+id = "在此填入你的KV_namespace_id"		# 用 npx wrangler kv namespace create KV 创建后，把输出的 id 粘贴到这里

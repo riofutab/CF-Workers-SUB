@@ -20,6 +20,7 @@ let urls = [];
 let subConverter = "SUBAPI.cmliussss.net"; //在线订阅转换后端，目前使用CM的订阅转换功能。支持自建psub 可自行搭建https://github.com/bulianglin/psub
 let subConfig = "https://raw.githubusercontent.com/cmliu/ACL4SSR/main/Clash/config/ACL4SSR_Online_MultiCountry.ini"; //订阅配置文件
 let subProtocol = 'https';
+let subCacheTTL = 3600; //订阅转换结果缓存秒数（0=禁用），可用环境变量 CACHETTL 覆盖；节点固定时可设更长（如 21600=6h）
 
 export default {
 	async fetch(request, env) {
@@ -40,6 +41,7 @@ export default {
 		}
 		subConfig = env.SUBCONFIG || subConfig;
 		FileName = env.SUBNAME || FileName;
+		subCacheTTL = Number(env.CACHETTL ?? subCacheTTL) || 0;
 
 		const currentDate = new Date();
 		currentDate.setHours(0, 0, 0, 0);
@@ -202,13 +204,20 @@ export default {
 				subConverterUrl = `${subProtocol}://${subConverter}/sub?target=loon&url=${encodeURIComponent(订阅转换URL)}&insert=false&config=${encodeURIComponent(subConfig)}&emoji=true&list=false&tfo=false&scv=true&fdn=false&sort=false`;
 			}
 			//console.log(订阅转换URL);
+			// 只有非浏览器订阅才会返回SUBNAME
+			if (!userAgent.includes('mozilla')) responseHeaders["Content-Disposition"] = `attachment; filename*=utf-8''${encodeURIComponent(FileName)}`;
+			// KV 缓存：命中直接返回，避免每次都请求转换后端（未绑定 KV 或 CACHETTL=0 时自动跳过）
+			const 缓存键 = (env.KV && subCacheTTL > 0) ? `subcache_${await MD5MD5(subConverterUrl)}` : null;
+			if (缓存键) {
+				const 缓存内容 = await env.KV.get(缓存键);
+				if (缓存内容) return new Response(缓存内容, { headers: responseHeaders });
+			}
 			try {
 				const subConverterResponse = await fetch(subConverterUrl, { headers: { 'User-Agent': userAgentHeader } });//订阅转换
 				if (!subConverterResponse.ok) return new Response(base64Data, { headers: responseHeaders });
 				let subConverterContent = await subConverterResponse.text();
 				if (订阅格式 == 'clash') subConverterContent = await clashFix(subConverterContent);
-				// 只有非浏览器订阅才会返回SUBNAME
-				if (!userAgent.includes('mozilla')) responseHeaders["Content-Disposition"] = `attachment; filename*=utf-8''${encodeURIComponent(FileName)}`;
+				if (缓存键 && subConverterContent) await env.KV.put(缓存键, subConverterContent, { expirationTtl: Math.max(60, subCacheTTL) });
 				return new Response(subConverterContent, { headers: responseHeaders });
 			} catch (error) {
 				return new Response(base64Data, { headers: responseHeaders });
