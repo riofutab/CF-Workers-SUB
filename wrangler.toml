@@ -1,8 +1,8 @@
-name = "sub-worker"
+name = "sublink"
 main = "_worker.js"
 compatibility_date = "2025-07-23"
 keep_vars = true
 
 [[kv_namespaces]]
 binding = "KV"			# KV 绑定名，代码用 env.KV 引用，勿改
-id = "在此填入你的KV_namespace_id"		# 用 npx wrangler kv namespace create KV 创建后，把输出的 id 粘贴到这里
+id = "3b25ca772a9d461e8bf41e7985b9595b"		# 用 npx wrangler kv namespace create KV 创建后，把输出的 id 粘贴到这里
